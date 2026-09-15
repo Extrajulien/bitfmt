@@ -1,0 +1,59 @@
+@color(#FFFBAD) @info(compressed size of the header) @valid(!=0)
+u64 header_size;
+@info(compressed chunk data)
+auto header_data header_size <<>> compression(lz4) {
+    [
+        @color(#7927F5) @info(points to the corresponding chunk) @valid(!=0)
+        u32 pointer;
+        @color(#6700FF) @info(size of the chunk) @valid(!=0)
+        u32 uncomp_size;
+    ] * 4096;
+};
+
+
+// ============================================================================
+// .bitfmt SPECIFICATION CHEAT SHEET & ARCHITECTURE NOTES
+// ============================================================================
+//
+// 1. DATA TYPES & BIT-STREAM ENGINE
+//    - Types like 'u8', 'u64', or 'u12' mean "read X bits as an unsigned int".
+//    - Unaligned bitfields (e.g. u1, u3, u4) read across byte boundaries
+//      without padding.
+//    - Arrays/strings of bytes use character array syntax: [u8 * length].
+//    - 'auto' deduces its type dynamically from structural blocks or pipelines.
+//
+// 2. STATEMENT & STRUCT SCOPING
+//    - Statements strictly end with a semicolon ';'.
+//    - '[]' declares an anonymous scope (unnamed struct) that bubbles its fields
+//      directly to the parent container via dot notation.
+//    - '[ ... ] * N' repeats the contained scope N times (array of structs).
+//    - Array counts can be static constants (*4096) or references to earlier
+//      parsed fields (*header_size).
+//
+// 3. PIPELINE OPERATOR (<<>>) - BI-DIRECTIONAL TRANSFORMATIONS
+//    - Syntax: target param <<>> transform(algorithm) { body };
+//    - '<<' denotes initialization/reading; '>>' denotes passing to a pipeline.
+//    - Links reading & writing logic in one declarative binding:
+//        * Deserialization: Read 'param' bytes -> Decompress LZ4 -> Parse body.
+//        * Serialization:   Pack body -> Compress LZ4 -> Back-patch 'param' size.
+//    - Implicitly aligns bitstream cursor to the next full byte before passing
+//      buffers to byte-oriented transforms (LZ4/Zstd).
+//
+// 4. ANNOTATIONS & METADATA (@)
+//    - Metadata attributes attach directly to field definitions for UI/validation.
+//    - @info("description"): Provides hover tooltips and inspector documentation.
+//    - @color(#HEX): Hues visual nodes and hex viewer bit-range highlights.
+//    - @valid(op val): Dynamic assertion evaluated immediately upon field read.
+//      * Implicitly binds field value as the left-hand operand (e.g. @valid(!=0)).
+//      * Supports comma-separated AND conditions and dynamic cross-field checks.
+//
+// 5. EVALUATION MODEL
+//    - Top-to-Bottom, Left-to-Right execution over a dynamic Symbol Table.
+//    - Streams can temporarily freeze, spawn a virtual sub-stream (e.g. inside
+//      decompressed blocks), and pop back to the parent stream once evaluated.
+//
+// 6. Structure
+//    - Every .bitfmt file is a reusable format, meaning you can add a format
+//      via an import and use it inside another (it will call format's code when
+//      needed and will still be accessible via dot notation)
+// ============================================================================
