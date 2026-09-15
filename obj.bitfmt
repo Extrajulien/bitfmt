@@ -1,0 +1,53 @@
+@mode(text)              // set the state machine to read in text mode
+@separator(' ')          // each statement values are separated with spaces
+@trim_whitespaces(true)  // trim all spaces on statement start and ends
+@statement_end('\n')     // each statement in obj is separated in lines
+@comment_line('#')       // ignores #..\n
+@start_index(1)          // obj is 1 based indexing
+
+@valid(!=0)
+auto vertices <<>> match("v") [
+    f32 x;
+    f32 y;
+    f32 z;
+    f32 w = 1;
+]*;  // '*' for a match array means "until it doesn't match"
+
+@valid((texture_coords.count == vertices.count))
+@nullable
+auto texture_coords <<>> match("vt") [
+    f32 u;
+    f32 v = 0;
+    f32 w = 0;
+]*;
+
+@valid((normals.count == vertices.count))
+@nullable
+@batch(normalize(normals))
+auto normals <<>> match("vn") [
+    f32 x;
+    f32 y;
+    f32 z;
+]*;
+
+@nullable
+auto space_vertices <<>> match("vp") [
+    f32 u;
+    f32? v;
+    f32? w;  // '?' means nullable
+]*;
+
+@inner_separator('/')
+@valid(faces.count != 0)
+auto faces <<>> (match("f") >> inner_split()) [
+    [
+        u32 vertex_id; // fill based on the slashes and since its the first data if no split was found then it takes the sole number
+        ?u32 texture_id;
+        ?u32 normal_id;
+    ]*; // for every inner splits
+]*;
+
+@nullable
+auto lines <<>> match("l") [
+    [u32 id;]*;  // array of ids of vertices
+]*;
